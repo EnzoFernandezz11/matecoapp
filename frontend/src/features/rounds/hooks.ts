@@ -6,6 +6,7 @@ import { useAuth } from "@/features/auth/use-auth";
 import {
   completeTurn,
   createRound,
+  deleteRound,
   fetchCurrentTurn,
   fetchInvite,
   fetchRoundDetail,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/api/endpoints";
 import type { RoundCreateInput } from "@/lib/api/types";
 
-const AUTO_REFRESH_MS = 5000;
+const AUTO_REFRESH_MS = 15000;
 
 export function useRounds() {
   const { token } = useAuth();
@@ -26,7 +27,7 @@ export function useRounds() {
     queryFn: () => fetchRounds(token as string),
     enabled: Boolean(token),
     refetchInterval: AUTO_REFRESH_MS,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -37,7 +38,7 @@ export function useRoundDetail(roundId: string) {
     queryFn: () => fetchRoundDetail(roundId, token as string),
     enabled: Boolean(token && roundId),
     refetchInterval: AUTO_REFRESH_MS,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -48,7 +49,7 @@ export function useCurrentTurn(roundId: string) {
     queryFn: () => fetchCurrentTurn(roundId, token as string),
     enabled: Boolean(token && roundId),
     refetchInterval: AUTO_REFRESH_MS,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -90,6 +91,17 @@ export function useLeaveRound() {
   const { token } = useAuth();
   return useMutation({
     mutationFn: (roundId: string) => leaveRound(roundId, token as string),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rounds"] });
+    },
+  });
+}
+
+export function useDeleteRound() {
+  const queryClient = useQueryClient();
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: (roundId: string) => deleteRound(roundId, token as string),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rounds"] });
     },

@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers.admin_router import router as admin_router
 from app.routers.auth_router import router as auth_router
 from app.routers.round_router import router as round_router
 from app.routers.turn_router import router as turn_router
+from app.routers.university_router import router as university_router
 from app.routers.user_router import router as user_router
 
 
@@ -15,13 +17,16 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ],
+    allow_origin_regex=r"http://192\.168\.\d+\.\d+:3000",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(user_router)
+app.include_router(university_router)
 app.include_router(round_router)
 app.include_router(turn_router)
 

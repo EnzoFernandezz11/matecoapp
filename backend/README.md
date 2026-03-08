@@ -32,6 +32,8 @@ docker compose down
 
 ```env
 DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/matecoapp
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=change-this-super-long-password
 ```
 2. Instalar dependencias:
 
@@ -57,11 +59,18 @@ uvicorn app.main:app --reload
 - `POST /auth/register`
 - `POST /auth/login`
 - `GET /auth/me`
+- `GET /users/me`
+- `PATCH /users/me`
+- `GET /universities/search?q=...`
+- `POST /universities`
 - `POST /rounds`
 - `GET /rounds`
 - `GET /rounds/{round_id}`
 - `POST /rounds/{round_id}/join`
+- `DELETE /rounds/{round_id}`
 - `POST /rounds/{round_id}/invite`
 - `GET /rounds/{round_id}/turn`
 - `POST /turns/{turn_id}/complete`
 - `POST /turns/{turn_id}/miss`
+- `GET /admin/health` (Basic Auth)
+- `GET /admin/metrics` (Basic Auth)

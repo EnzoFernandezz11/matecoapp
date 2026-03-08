@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 
 import { RankingList } from "@/components/rounds/ranking-list";
+import { RoundSubNav } from "@/components/rounds/round-subnav";
 import { BottomNav } from "@/components/ui/bottom-nav";
 import { Card } from "@/components/ui/card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
@@ -34,6 +35,8 @@ export default function RoundRankingPage() {
         <h1 className="text-xl font-extrabold text-zinc-900">Ranking de quien llevo el mate</h1>
         <p className="text-sm text-zinc-600">{detail.data?.round.name ?? "Ronda"}</p>
       </header>
+
+      <RoundSubNav roundId={roundId} />
 
       <Card className="mb-4 bg-mateco-primary text-white">
         <p className="text-sm">Mas turnos cumplidos</p>

@@ -7,6 +7,7 @@ import type {
   RoundDetail,
   Turn,
   TurnActionResponse,
+  University,
   User,
 } from "@/lib/api/types";
 
@@ -33,6 +34,33 @@ export function loginWithEmail(email: string, password: string): Promise<AuthRes
 
 export function fetchMe(token: string): Promise<User> {
   return apiFetch<User>("/auth/me", {}, token);
+}
+
+export function updateMeUniversity(universityId: string | null, token: string): Promise<User> {
+  return apiFetch<User>(
+    "/users/me",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ university_id: universityId }),
+    },
+    token,
+  );
+}
+
+export function searchUniversities(query: string, token: string): Promise<University[]> {
+  const params = new URLSearchParams({ q: query, limit: "8" });
+  return apiFetch<University[]>(`/universities/search?${params.toString()}`, {}, token);
+}
+
+export function createUniversity(name: string, token: string): Promise<University> {
+  return apiFetch<University>(
+    "/universities",
+    {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    },
+    token,
+  );
 }
 
 export function fetchRounds(token: string): Promise<Round[]> {
@@ -78,6 +106,16 @@ export function joinRoundByCode(inviteCode: string, token: string): Promise<Roun
 export function leaveRound(roundId: string, token: string): Promise<void> {
   return apiFetch<void>(
     `/rounds/${roundId}/leave`,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
+}
+
+export function deleteRound(roundId: string, token: string): Promise<void> {
+  return apiFetch<void>(
+    `/rounds/${roundId}`,
     {
       method: "DELETE",
     },

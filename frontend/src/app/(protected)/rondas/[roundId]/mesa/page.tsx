@@ -6,6 +6,7 @@ import confetti from "canvas-confetti";
 
 import { InviteCodeCard } from "@/components/rounds/invite-code-card";
 import { MateTable } from "@/components/rounds/mate-table";
+import { RoundSubNav } from "@/components/rounds/round-subnav";
 import { ShareCard } from "@/components/rounds/share-card";
 import { TurnStatusChip } from "@/components/rounds/turn-status-chip";
 import { BottomNav } from "@/components/ui/bottom-nav";
@@ -13,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAuth } from "@/features/auth/use-auth";
-import { useCompleteTurn, useCreateInvite, useCurrentTurn, useLeaveRound, useMissTurn, useRoundDetail } from "@/features/rounds/hooks";
+import { useCompleteTurn, useCreateInvite, useCurrentTurn, useDeleteRound, useLeaveRound, useMissTurn, useRoundDetail } from "@/features/rounds/hooks";
 import type { InviteLinkResponse } from "@/lib/api/types";
 
 export default function RoundTablePage() {
@@ -26,6 +27,7 @@ export default function RoundTablePage() {
   const complete = useCompleteTurn(roundId);
   const miss = useMissTurn(roundId);
   const leave = useLeaveRound();
+  const removeRound = useDeleteRound();
   const inviteMutation = useCreateInvite();
   const [inviteData, setInviteData] = useState<InviteLinkResponse | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -106,6 +108,19 @@ export default function RoundTablePage() {
     }
   };
 
+  const handleDeleteRound = async () => {
+    if (!confirm("Seguro que queres eliminar esta ronda? Esta accion no se puede deshacer.")) {
+      return;
+    }
+    setActionError(null);
+    try {
+      await removeRound.mutateAsync(roundId);
+      router.push("/rondas");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "No se pudo eliminar la ronda");
+    }
+  };
+
   return (
     <>
       <header className="mb-4 flex items-center justify-between">
@@ -121,6 +136,8 @@ export default function RoundTablePage() {
           <span className="material-symbols-outlined text-zinc-700">emoji_events</span>
         </button>
       </header>
+
+      <RoundSubNav roundId={roundId} />
 
       <Card>
         {loading ? (
@@ -184,19 +201,26 @@ export default function RoundTablePage() {
           <Button className="mt-3" variant="secondary" onClick={handleInvite} disabled={inviteMutation.isPending}>
             {inviteMutation.isPending ? "Generando invitacion..." : "Compartir ronda"}
           </Button>
+          <Button
+            className="mt-2 bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300 disabled:text-white"
+            variant="danger"
+            onClick={handleDeleteRound}
+            disabled={removeRound.isPending}
+          >
+            {removeRound.isPending ? "Eliminando..." : "Eliminar ronda"}
+          </Button>
           {inviteData ? <div className="mt-3"><InviteCodeCard title="Invitacion de la ronda" code={inviteData.invite_code} link={inviteData.invite_link} /></div> : null}
         </Card>
       ) : null}
 
-      <Card className="mt-4">
-        <p className="text-sm font-semibold text-zinc-900">Participacion</p>
-        <Button className="mt-3" variant="secondary" onClick={handleLeave} disabled={leave.isPending || isAdmin}>
-          {leave.isPending ? "Saliendo..." : "Salir de esta ronda"}
-        </Button>
-        {isAdmin ? (
-          <p className="mt-2 text-xs text-zinc-500">Como creador no podes salir de la ronda.</p>
-        ) : null}
-      </Card>
+      {!isAdmin ? (
+        <Card className="mt-4">
+          <p className="text-sm font-semibold text-zinc-900">Participacion</p>
+          <Button className="mt-3" variant="secondary" onClick={handleLeave} disabled={leave.isPending}>
+            {leave.isPending ? "Saliendo..." : "Salir de esta ronda"}
+          </Button>
+        </Card>
+      ) : null}
 
       <BottomNav currentRoundId={roundId} />
 

@@ -1,5 +1,20 @@
 :root {
-  --mateco-primary: #253c0b;
+  --mateco-primary: #2f4a12;
+  --mateco-primary-hover: #243a0e;
+  --mateco-primary-light: #eef5e4;
   --mateco-bg-light: #f7f8f6;
   --mateco-bg-dark: #192012;
+
+  --mateco-bg: #f6f7f5;
+  --mateco-surface: #ffffff;
+  --mateco-surface-alt: #f3f5f1;
+  --mateco-text: #1f2a1a;
+  --mateco-text-muted: #5f695d;
+  --mateco-border: #e3e8de;
+  --mateco-accent-yerba: #7aae3b;
+  --mateco-accent-mate: #b86b2b;
+  --mateco-accent-sky: #3f8cff;
+  --mateco-success: #1f9d55;
+  --mateco-warning: #e6a700;
+  --mateco-error: #d64545;
 }

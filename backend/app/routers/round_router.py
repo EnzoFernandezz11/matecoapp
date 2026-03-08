@@ -16,6 +16,7 @@ from app.schemas.turn_schema import TurnResponse
 from app.services.round_service import (
     build_invite_link,
     create_round,
+    delete_round,
     get_current_turn,
     get_round_detail,
     get_round_or_404,
@@ -80,6 +81,16 @@ def leave_existing_round(
     user=Depends(get_current_user),
 ) -> Response:
     leave_round(db, round_id, user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/{round_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_existing_round(
+    round_id: UUID,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+) -> Response:
+    delete_round(db, round_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

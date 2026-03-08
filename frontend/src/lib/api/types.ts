@@ -1,12 +1,23 @@
 export type PenaltyMode = "auto" | "vote";
 export type TurnStatus = "pending" | "completed" | "missed";
 
+export interface University {
+  id: string;
+  name: string;
+  country?: string | null;
+  city?: string | null;
+  is_verified: boolean;
+  created_at?: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar_url: string;
+  university_id?: string | null;
   university?: string | null;
+  university_ref?: University | null;
   career?: string | null;
   created_at: string;
 }

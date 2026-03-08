@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const rounds = useRounds();
 
   const totalRounds = rounds.data?.length ?? 0;
+  const universityName = user?.university_ref?.name ?? user?.university ?? "No definida";
 
   return (
     <>
@@ -34,7 +35,7 @@ export default function ProfilePage() {
 
       <Card className="mt-3">
         <p className="text-sm text-zinc-700">Rondas activas: <span className="font-bold">{totalRounds}</span></p>
-        <p className="mt-1 text-sm text-zinc-700">Universidad: <span className="font-bold">{user?.university ?? "No definida"}</span></p>
+        <p className="mt-1 text-sm text-zinc-700">Universidad: <span className="font-bold">{universityName}</span></p>
         <p className="mt-1 text-sm text-zinc-700">Carrera: <span className="font-bold">{user?.career ?? "No definida"}</span></p>
       </Card>
 

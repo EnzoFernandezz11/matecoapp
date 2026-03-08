@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MateIcon } from "@/components/ui/mate-icon";
 import { useAuth } from "@/features/auth/use-auth";
+import { UNIVERSITY_ONBOARDING_SKIP_KEY } from "@/features/university/constants";
+import { ApiError } from "@/lib/api/client";
 import { authWithGoogle, loginWithEmail, registerWithEmail } from "@/lib/api/endpoints";
 
 type Mode = "login" | "register";
@@ -25,10 +27,35 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoaded, setGoogleLoaded] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const resolvePostLoginPath = (universityId?: string | null) => {
+    const skipped = typeof window !== "undefined" && localStorage.getItem(UNIVERSITY_ONBOARDING_SKIP_KEY) === "1";
+    if (!universityId && !skipped) {
+      return "/onboarding/university";
+    }
+    return "/inicio";
+  };
+  const isValidEmail = (value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  };
+  const toFriendlyAuthError = (error: unknown, action: Mode): string => {
+    if (!(error instanceof ApiError)) {
+      return action === "register" ? "No se pudo crear la cuenta" : "No se pudo iniciar sesion";
+    }
+    if (error.status === 409) {
+      return "Ese email ya esta registrado. Proba iniciar sesion.";
+    }
+    if (error.status === 401) {
+      return "Email o contrasena incorrectos.";
+    }
+    if (error.status === 422) {
+      return "Revisa los datos ingresados y volve a intentar.";
+    }
+    return error.message;
+  };
 
   useEffect(() => {
     if (token) {
-      router.replace("/rondas");
+      router.replace("/inicio");
     }
   }, [token, router]);
 
@@ -55,7 +82,7 @@ export default function LoginPage() {
         try {
           const auth = await authWithGoogle(credential);
           setAuth(auth.token, auth.user);
-          router.replace("/rondas");
+          router.replace(resolvePostLoginPath(auth.user.university_id));
         } catch (err) {
           setError(err instanceof Error ? err.message : "No se pudo iniciar sesion con Google");
         } finally {
@@ -79,8 +106,20 @@ export default function LoginPage() {
       setError("Ingresa email y contrasena.");
       return;
     }
+    if (!isValidEmail(email.trim())) {
+      setError("Ingresa un email valido.");
+      return;
+    }
+    if (password.trim().length < 8) {
+      setError("La contrasena debe tener al menos 8 caracteres.");
+      return;
+    }
     if (mode === "register" && !name.trim()) {
       setError("Ingresa tu nombre para registrarte.");
+      return;
+    }
+    if (mode === "register" && name.trim().length < 2) {
+      setError("El nombre debe tener al menos 2 caracteres.");
       return;
     }
 
@@ -92,9 +131,9 @@ export default function LoginPage() {
           ? await registerWithEmail(name.trim(), email.trim(), password)
           : await loginWithEmail(email.trim(), password);
       setAuth(auth.token, auth.user);
-      router.replace("/rondas");
+      router.replace(resolvePostLoginPath(auth.user.university_id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo autenticar");
+      setError(toFriendlyAuthError(err, mode));
     } finally {
       setLoading(false);
     }

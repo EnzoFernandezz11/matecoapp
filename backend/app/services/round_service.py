@@ -245,6 +245,18 @@ def leave_round(db: Session, round_id: UUID, user: User) -> None:
     db.commit()
 
 
+def delete_round(db: Session, round_id: UUID, user: User) -> None:
+    round_obj = get_round_or_404(db, round_id)
+    if round_obj.created_by != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the round admin can delete this round",
+        )
+
+    db.delete(round_obj)
+    db.commit()
+
+
 def build_invite_link(round_obj: Round) -> str:
     return f"mateco.app/join/{round_obj.invite_code}"
 
