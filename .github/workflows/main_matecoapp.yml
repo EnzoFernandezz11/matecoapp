@@ -52,6 +52,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: python-app
+          path: deploy
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -66,6 +67,6 @@ jobs:
         with:
           app-name: 'matecoapp'
           slot-name: 'Production'
-          package: backend
+          package: deploy/backend
           startup-command: 'gunicorn --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 app.main:app'
           
