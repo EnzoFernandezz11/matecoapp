@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   title: "MatecoApp",
   description: "Organiza rondas de mate entre estudiantes",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icons/mate-apple.png",
+    apple: "/icons/mate-apple.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
