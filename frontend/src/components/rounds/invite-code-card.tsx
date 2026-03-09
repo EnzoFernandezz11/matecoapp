@@ -4,14 +4,15 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { shareWithFallback } from "@/lib/share/mobileShare";
 
 export function InviteCodeCard({ code, link, title = "Invitacion creada" }: { code: string; link: string; title?: string }) {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
-  const canNativeShare = typeof navigator !== "undefined" && "share" in navigator;
   const message = `Unite a mi ronda de mate con este link: ${link}`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}`;
+  const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(link);
@@ -20,10 +21,7 @@ export function InviteCodeCard({ code, link, title = "Invitacion creada" }: { co
   };
 
   const handleShare = async () => {
-    if (!canNativeShare) {
-      return;
-    }
-    await navigator.share({
+    await shareWithFallback({
       title: "Invitacion a ronda",
       text: "Unite a mi ronda de mate",
       url: link,
@@ -38,7 +36,15 @@ export function InviteCodeCard({ code, link, title = "Invitacion creada" }: { co
       <p className="mt-1 text-sm text-zinc-600">Codigo: <span className="font-bold">{code}</span></p>
       <p className="mt-1 break-all text-xs text-zinc-500">{link}</p>
       <div className="mt-3 flex justify-center rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-        <img src={qrUrl} alt="QR de invitacion" className="h-40 w-40 rounded-lg" />
+        <img
+          src={qrUrl}
+          alt="QR de invitacion"
+          width={160}
+          height={160}
+          loading="lazy"
+          decoding="async"
+          className="h-40 w-40 rounded-lg"
+        />
       </div>
       <Button className="mt-3" variant="secondary" onClick={handleCopy}>
         {copied ? "Copiado" : "Copiar link"}

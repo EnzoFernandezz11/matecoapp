@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.schemas.round_schema import (
     InviteLinkResponse,
     JoinByCodeRequest,
+    PenaltyResponse,
     RoundCreate,
     RoundDetailResponse,
     RoundResponse,
@@ -16,7 +17,6 @@ from app.schemas.turn_schema import TurnResponse
 from app.services.round_service import (
     build_invite_link,
     create_round,
-    delete_round,
     get_current_turn,
     get_round_detail,
     get_round_or_404,
@@ -24,6 +24,7 @@ from app.services.round_service import (
     join_round,
     leave_round,
     list_user_rounds,
+    resolve_penalty,
 )
 
 
@@ -84,16 +85,6 @@ def leave_existing_round(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.delete("/{round_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_existing_round(
-    round_id: UUID,
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-) -> Response:
-    delete_round(db, round_id, user)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
 @router.post("/{round_id}/invite", response_model=InviteLinkResponse)
 def invite_to_round(
     round_id: UUID,
@@ -114,3 +105,24 @@ def get_round_turn(
     user=Depends(get_current_user),
 ) -> TurnResponse:
     return get_current_turn(db, round_id, user.id)
+
+
+@router.post("/{round_id}/penalties/{penalty_id}/resolve", response_model=PenaltyResponse)
+def resolve_round_penalty(
+    round_id: UUID,
+    penalty_id: UUID,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+) -> PenaltyResponse:
+    penalty = resolve_penalty(db, round_id, penalty_id, user.id)
+    return PenaltyResponse(
+        id=penalty.id,
+        round_id=penalty.round_id,
+        user_id=penalty.user_id,
+        user_name=penalty.user.name,
+        turn_id=penalty.turn_id,
+        type=penalty.type,
+        description=penalty.description,
+        resolved=penalty.resolved,
+        created_at=penalty.created_at,
+    )

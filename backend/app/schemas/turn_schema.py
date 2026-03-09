@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -17,8 +17,10 @@ class TurnResponse(BaseModel):
     id: UUID
     round_id: UUID
     user_id: UUID
+    turn_date: date
     turn_index: int
     status: TurnStatus
+    excuse: str | None = None
     created_at: datetime
 
 

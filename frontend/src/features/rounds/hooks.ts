@@ -5,8 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/use-auth";
 import {
   completeTurn,
+  confirmTurn,
   createRound,
-  deleteRound,
   fetchCurrentTurn,
   fetchInvite,
   fetchRoundDetail,
@@ -15,10 +15,12 @@ import {
   joinRoundByCode,
   leaveRound,
   missTurn,
+  resolvePenalty,
+  skipTurn,
 } from "@/lib/api/endpoints";
 import type { RoundCreateInput } from "@/lib/api/types";
 
-const AUTO_REFRESH_MS = 15000;
+const AUTO_REFRESH_MS = 5000;
 
 export function useRounds() {
   const { token } = useAuth();
@@ -27,7 +29,7 @@ export function useRounds() {
     queryFn: () => fetchRounds(token as string),
     enabled: Boolean(token),
     refetchInterval: AUTO_REFRESH_MS,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -38,7 +40,7 @@ export function useRoundDetail(roundId: string) {
     queryFn: () => fetchRoundDetail(roundId, token as string),
     enabled: Boolean(token && roundId),
     refetchInterval: AUTO_REFRESH_MS,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -49,7 +51,7 @@ export function useCurrentTurn(roundId: string) {
     queryFn: () => fetchCurrentTurn(roundId, token as string),
     enabled: Boolean(token && roundId),
     refetchInterval: AUTO_REFRESH_MS,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -97,17 +99,6 @@ export function useLeaveRound() {
   });
 }
 
-export function useDeleteRound() {
-  const queryClient = useQueryClient();
-  const { token } = useAuth();
-  return useMutation({
-    mutationFn: (roundId: string) => deleteRound(roundId, token as string),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rounds"] });
-    },
-  });
-}
-
 export function useInvite(roundId: string) {
   const { token } = useAuth();
   return useQuery({
@@ -128,7 +119,7 @@ export function useCompleteTurn(roundId: string) {
   const queryClient = useQueryClient();
   const { token } = useAuth();
   return useMutation({
-    mutationFn: (turnId: string) => completeTurn(turnId, token as string),
+    mutationFn: (turnId: string) => confirmTurn(turnId, token as string).catch(() => completeTurn(turnId, token as string)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rounds", roundId] });
       queryClient.invalidateQueries({ queryKey: ["rounds", roundId, "turn"] });
@@ -141,10 +132,23 @@ export function useMissTurn(roundId: string) {
   const queryClient = useQueryClient();
   const { token } = useAuth();
   return useMutation({
-    mutationFn: ({ turnId, excuse }: { turnId: string; excuse?: string }) => missTurn(turnId, token as string, excuse),
+    mutationFn: ({ turnId, excuse }: { turnId: string; excuse?: string }) =>
+      skipTurn(turnId, token as string, excuse).catch(() => missTurn(turnId, token as string, excuse)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rounds", roundId] });
       queryClient.invalidateQueries({ queryKey: ["rounds", roundId, "turn"] });
+      queryClient.invalidateQueries({ queryKey: ["rounds"] });
+    },
+  });
+}
+
+export function useResolvePenalty(roundId: string) {
+  const queryClient = useQueryClient();
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: (penaltyId: string) => resolvePenalty(roundId, penaltyId, token as string),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rounds", roundId] });
       queryClient.invalidateQueries({ queryKey: ["rounds"] });
     },
   });

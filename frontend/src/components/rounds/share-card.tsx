@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
+import { useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { canvasToPngFile, shareWithFallback } from "@/lib/share/mobileShare";
 
 type ShareCardProps = {
   userName: string;
@@ -13,145 +14,66 @@ type ShareCardProps = {
   statsText: string;
 };
 
-function getStyleForRole(role: ShareCardProps["role"]) {
-  switch (role) {
-    case "MVP":
-      return "bg-gradient-to-br from-amber-200 via-amber-400 to-yellow-600 text-zinc-900";
-    case "RATA":
-      return "bg-gradient-to-br from-zinc-800 via-zinc-900 to-black text-red-500 border-2 border-red-600";
-    case "TURN":
-      return "bg-gradient-to-br from-mateco-primary to-green-600 text-white";
-    default:
-      return "bg-zinc-800 text-white";
-  }
-}
-
-function getTitleForRole(role: ShareCardProps["role"]) {
-  switch (role) {
-    case "MVP":
-      return "CEBADOR LEGENDARIO";
-    case "RATA":
-      return "ALERTA DE RATA";
-    case "TURN":
-      return "HOY CEBA";
-    default:
-      return "MATECO APP";
-  }
-}
-
-async function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error("No se pudo generar la imagen"));
-        return;
-      }
-      resolve(blob);
-    }, "image/png");
-  });
-}
-
-async function safeCopyText(text: string): Promise<boolean> {
-  try {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // Continue with legacy fallback below.
-  }
-
-  try {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.top = "-9999px";
-    textarea.style.left = "-9999px";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    const copied = document.execCommand("copy");
-    document.body.removeChild(textarea);
-    return copied;
-  } catch {
-    return false;
-  }
-}
-
 export function ShareCard({ userName, avatarUrl, role, statsText }: ShareCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (downloadUrl) {
-        URL.revokeObjectURL(downloadUrl);
-      }
-    };
-  }, [downloadUrl]);
-
-  const shareText = `Mira esta tarjeta de MatecoApp: ${userName}`;
-  const shareUrl = "https://mateco.app";
-
-  const buildCardImage = async () => {
-    if (!cardRef.current) {
-      throw new Error("No se encontro la tarjeta para compartir");
+  const getStyleForRole = () => {
+    switch (role) {
+      case "MVP":
+        return "bg-gradient-to-br from-amber-200 via-amber-400 to-yellow-600 text-zinc-900";
+      case "RATA":
+        return "bg-gradient-to-br from-zinc-800 via-zinc-900 to-black text-red-500 border-2 border-red-600";
+      case "TURN":
+        return "bg-gradient-to-br from-mateco-primary to-green-600 text-white";
+      default:
+        return "bg-zinc-800 text-white";
     }
-    const canvas = await html2canvas(cardRef.current, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: null,
-    });
-    return canvasToBlob(canvas);
+  };
+
+  const getTitleForRole = () => {
+    switch (role) {
+      case "MVP":
+        return "CEBADOR LEGENDARIO";
+      case "RATA":
+        return "ALERTA DE RATA";
+      case "TURN":
+        return "HOY CEBA";
+      default:
+        return "MATE MATTERS";
+    }
   };
 
   const handleShare = async () => {
+    if (!cardRef.current) return;
+
     setIsGenerating(true);
-    setStatus(null);
+    setShareStatus(null);
     try {
-      const blob = await buildCardImage();
-      const file = new File([blob], `mateco-${role || "share"}.png`, { type: "image/png" });
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: null,
+      });
 
-      // Prefer native share sheet with image file on mobile.
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: "MatecoApp",
-          text: shareText,
-          files: [file],
-        });
-        setStatus("Compartido");
-        return;
-      }
+      const file = await canvasToPngFile(canvas, `mateco-${role || "share"}.png`);
+      const result = await shareWithFallback({
+        title: "MatecoApp",
+        text: "Mira esto en MatecoApp",
+        url: typeof window !== "undefined" ? window.location.href : undefined,
+        files: file ? [file] : undefined,
+      });
 
-      // Fallback to URL/text share if file-share is unsupported.
-      if (navigator.share) {
-        await navigator.share({
-          title: "MatecoApp",
-          text: shareText,
-          url: shareUrl,
-        });
-        setStatus("Compartido");
-        return;
+      if (result === "copied") {
+        setShareStatus("Link copiado. Pega y comparti.");
       }
-
-      // Last fallback: copy share URL and expose manual download.
-      const copied = await safeCopyText(shareUrl);
-      const url = URL.createObjectURL(blob);
-      if (downloadUrl) {
-        URL.revokeObjectURL(downloadUrl);
+      if (result === "whatsapp") {
+        setShareStatus("Abriendo WhatsApp...");
       }
-      setDownloadUrl(url);
-      setStatus(
-        copied
-          ? "No hay share nativo. Copiamos el link y podes descargar la imagen."
-          : "No hay share nativo. Descarga la imagen y compartila manualmente.",
-      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "No se pudo compartir";
-      setStatus(message);
+      console.error("Error generating share card:", error);
+      setShareStatus("No se pudo compartir la tarjeta.");
     } finally {
       setIsGenerating(false);
     }
@@ -162,7 +84,7 @@ export function ShareCard({ userName, avatarUrl, role, statsText }: ShareCardPro
       <div className="relative w-full overflow-hidden rounded-xl">
         <div
           ref={cardRef}
-          className={`relative aspect-[3/4] w-full max-w-[400px] overflow-hidden rounded-2xl p-8 shadow-2xl ${getStyleForRole(role)} flex flex-col justify-between`}
+          className={`relative aspect-[3/4] w-full max-w-[400px] overflow-hidden rounded-2xl p-8 shadow-2xl ${getStyleForRole()} flex flex-col justify-between`}
         >
           <div
             className="absolute inset-0 opacity-10 mix-blend-overlay"
@@ -172,17 +94,20 @@ export function ShareCard({ userName, avatarUrl, role, statsText }: ShareCardPro
             }}
           />
 
-          <div className="relative z-10 text-center text-xl font-black uppercase tracking-widest opacity-80 mt-4">
-            {getTitleForRole(role)}
+          <div className="relative z-10 mt-4 text-center text-xl font-black uppercase tracking-widest opacity-80">
+            {getTitleForRole()}
           </div>
 
-          <div className="relative z-10 flex flex-col items-center gap-6 my-auto">
+          <div className="relative z-10 my-auto flex flex-col items-center gap-6">
             <div className={`rounded-full p-2 ${role === "RATA" ? "bg-red-500/20" : "bg-white/10"}`}>
-              <Avatar name={userName} src={avatarUrl} />
+              <Avatar name={userName} src={avatarUrl} className="h-24 w-24" />
             </div>
+
             <div className="text-center">
-              <h2 className="text-4xl font-black mb-2">{userName}</h2>
-              <p className={`text-lg font-medium opacity-90 p-4 rounded-xl ${role === "RATA" ? "bg-red-950/50" : "bg-black/20"}`}>
+              <h2 className="mb-2 text-4xl font-black">{userName}</h2>
+              <p
+                className={`rounded-xl p-4 text-lg font-medium opacity-90 ${role === "RATA" ? "bg-red-950/50" : "bg-black/20"}`}
+              >
                 {statsText}
               </p>
             </div>
@@ -194,25 +119,10 @@ export function ShareCard({ userName, avatarUrl, role, statsText }: ShareCardPro
         </div>
       </div>
 
-      <Button
-        onClick={handleShare}
-        disabled={isGenerating}
-        className="w-full bg-indigo-500 hover:bg-indigo-600 font-bold tracking-wide min-h-[44px]"
-      >
+      <Button onClick={handleShare} disabled={isGenerating} className="w-full font-bold tracking-wide">
         {isGenerating ? "Generando..." : "Compartir"}
       </Button>
-
-      {downloadUrl ? (
-        <a
-          href={downloadUrl}
-          download={`mateco-${role || "share"}.png`}
-          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-mateco-border bg-mateco-surface px-4 text-sm font-semibold text-zinc-800"
-        >
-          Descargar imagen
-        </a>
-      ) : null}
-
-      {status ? <p className="text-center text-xs text-zinc-200">{status}</p> : null}
+      {shareStatus ? <p className="text-xs text-zinc-600">{shareStatus}</p> : null}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -49,18 +49,32 @@ class TurnSummary(BaseModel):
     id: UUID
     user_id: UUID
     user_name: str
+    turn_date: date | None = None
     turn_index: int
     status: TurnStatus
     excuse: str | None = None
     created_at: datetime
 
 
+class UpcomingTurnSummary(BaseModel):
+    id: UUID
+    date: date
+    user_id: UUID
+    user_name: str
+    status: TurnStatus
+
+
 class PenaltyResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    round_id: UUID
     user_id: UUID
+    user_name: str
+    turn_id: UUID | None = None
     type: PenaltyType
+    description: str | None = None
+    resolved: bool
     created_at: datetime
 
 
@@ -84,4 +98,6 @@ class RoundDetailResponse(BaseModel):
     round: RoundResponse
     members: list[RoundMemberResponse]
     current_turn: TurnSummary | None
+    upcoming_turns: list[UpcomingTurnSummary]
+    penalties: list[PenaltyResponse]
     ranking: list[RankingEntry]

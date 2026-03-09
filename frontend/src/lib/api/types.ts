@@ -1,23 +1,12 @@
 export type PenaltyMode = "auto" | "vote";
-export type TurnStatus = "pending" | "completed" | "missed";
-
-export interface University {
-  id: string;
-  name: string;
-  country?: string | null;
-  city?: string | null;
-  is_verified: boolean;
-  created_at?: string;
-}
+export type TurnStatus = "pending" | "confirmed" | "skipped" | "reassigned";
 
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar_url: string;
-  university_id?: string | null;
   university?: string | null;
-  university_ref?: University | null;
   career?: string | null;
   created_at: string;
 }
@@ -53,6 +42,7 @@ export interface Turn {
   id: string;
   round_id: string;
   user_id: string;
+  turn_date: string;
   turn_index: number;
   status: TurnStatus;
   excuse?: string | null;
@@ -66,6 +56,18 @@ export interface RankingEntry {
   role: string | null;
 }
 
+export interface Penalty {
+  id: string;
+  round_id: string;
+  user_id: string;
+  user_name: string;
+  turn_id: string | null;
+  type: "double_turn" | "bring_facturas" | "bring_bizcochos";
+  description: string | null;
+  resolved: boolean;
+  created_at: string;
+}
+
 export interface RoundDetail {
   round: Round;
   members: RoundMember[];
@@ -73,11 +75,20 @@ export interface RoundDetail {
     id: string;
     user_id: string;
     user_name: string;
+    turn_date?: string | null;
     turn_index: number;
     status: TurnStatus;
     excuse?: string | null;
     created_at: string;
   } | null;
+  upcoming_turns: Array<{
+    id: string;
+    date: string;
+    user_id: string;
+    user_name: string;
+    status: TurnStatus;
+  }>;
+  penalties: Penalty[];
   ranking: RankingEntry[];
 }
 
@@ -90,4 +101,51 @@ export interface TurnActionResponse {
   turn: Turn;
   next_turn: Turn | null;
   penalty: "double_turn" | "bring_facturas" | "bring_bizcochos" | null;
+}
+
+export interface AdminRecentUser {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
+export interface AdminStats {
+  total_users: number;
+  new_users_last_7_days: number;
+  total_rounds: number;
+  recent_users: AdminRecentUser[];
+}
+
+export interface AdminUserListItem {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+  mesas_joined: number;
+}
+
+export interface AdminUsersListResponse {
+  items: AdminUserListItem[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface AdminUserRound {
+  id: string;
+  name: string;
+  joined_at: string;
+}
+
+export interface AdminUserDetail {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+  mesas_joined: number;
+  rounds: AdminUserRound[];
+  turns_total: number;
+  turns_completed: number;
+  turns_missed: number;
 }

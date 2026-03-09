@@ -14,13 +14,18 @@ const plusJakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "MatecoApp",
   description: "Organiza rondas de mate entre estudiantes",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MatecoApp",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#FFFFFF",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export default function RootLayout({

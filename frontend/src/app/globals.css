@@ -13,13 +13,14 @@ html,
 body {
   margin: 0;
   padding: 0;
-  color-scheme: light;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--mateco-bg);
-  color: var(--mateco-text);
-  transition: background-color 180ms ease, color 180ms ease;
+  background: var(--mateco-bg-light);
+  color: #1f2937;
+  touch-action: manipulation;
 }
 
 .material-symbols-outlined {
@@ -31,11 +32,45 @@ body {
   line-height: 1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+@keyframes mate-float {
+  0%,
+  100% {
+    transform: translate(-50%, -50%);
   }
+  50% {
+    transform: translate(-50%, calc(-50% - 4px));
+  }
+}
+
+@keyframes current-turn-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.08);
+  }
+}
+
+@keyframes subtle-pop {
+  0% {
+    transform: scale(0.98);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-mate-float {
+  animation: mate-float 2.8s ease-in-out infinite;
+}
+
+.animate-current-turn-pulse {
+  animation: current-turn-pulse 1.8s ease-in-out infinite;
+}
+
+.animate-subtle-pop {
+  animation: subtle-pop 280ms ease-out;
 }

@@ -29,3 +29,22 @@ def miss_round_turn(
     user=Depends(get_current_user),
 ) -> TurnActionResponse:
     return miss_turn(db, turn_id, user.id, request.excuse)
+
+
+@router.post("/{turn_id}/confirm", response_model=TurnActionResponse)
+def confirm_round_turn(
+    turn_id: UUID,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+) -> TurnActionResponse:
+    return complete_turn(db, turn_id, user.id)
+
+
+@router.post("/{turn_id}/skip", response_model=TurnActionResponse)
+def skip_round_turn(
+    turn_id: UUID,
+    request: MissTurnRequest,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+) -> TurnActionResponse:
+    return miss_turn(db, turn_id, user.id, request.excuse)

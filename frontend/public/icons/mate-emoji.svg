@@ -1,0 +1,33 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="gourdBody" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(128 168) rotate(90) scale(74 68)">
+      <stop stop-color="#B7644E"/>
+      <stop offset="1" stop-color="#7A3D34"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="64" y1="102" x2="192" y2="102" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9A7D73"/>
+      <stop offset="1" stop-color="#6F5A53"/>
+    </linearGradient>
+    <linearGradient id="straw" x1="175" y1="40" x2="197" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E9EDF3"/>
+      <stop offset="1" stop-color="#9AA5B1"/>
+    </linearGradient>
+    <radialGradient id="yerba" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(125 102) rotate(90) scale(20 44)">
+      <stop stop-color="#C1E668"/>
+      <stop offset="1" stop-color="#8BBE36"/>
+    </radialGradient>
+  </defs>
+
+  <ellipse cx="128" cy="104" rx="64" ry="16" fill="url(#rim)"/>
+  <ellipse cx="128" cy="108" rx="58" ry="11" fill="url(#yerba)"/>
+
+  <path d="M174 44C173 39 178 35 183 36C188 37 191 42 190 47L180 106C179 111 174 114 169 113C164 112 161 107 162 102L174 44Z" fill="url(#straw)"/>
+  <circle cx="186" cy="38" r="9" fill="#C9D1DB"/>
+  <circle cx="186" cy="38" r="4.5" fill="#8592A0"/>
+
+  <path d="M64 114C67 167 87 222 128 222C169 222 189 167 192 114C192 110 188 107 183 107H73C68 107 64 110 64 114Z" fill="url(#gourdBody)"/>
+  <ellipse cx="128" cy="157" rx="54" ry="41" fill="#A65647" fill-opacity="0.24"/>
+
+  <path d="M79 124C85 120 93 123 97 129" stroke="#D08978" stroke-width="6" stroke-linecap="round" opacity="0.45"/>
+  <path d="M173 125C167 121 159 123 155 129" stroke="#5F2F28" stroke-width="6" stroke-linecap="round" opacity="0.4"/>
+</svg>

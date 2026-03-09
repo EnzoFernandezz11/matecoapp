@@ -1,12 +1,12 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 
 import { InviteCodeCard } from "@/components/rounds/invite-code-card";
 import { MateTable } from "@/components/rounds/mate-table";
-import { RoundSubNav } from "@/components/rounds/round-subnav";
+import { RoundSubnav } from "@/components/rounds/round-subnav";
 import { ShareCard } from "@/components/rounds/share-card";
 import { TurnStatusChip } from "@/components/rounds/turn-status-chip";
 import { BottomNav } from "@/components/ui/bottom-nav";
@@ -14,25 +14,50 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAuth } from "@/features/auth/use-auth";
-import { useCompleteTurn, useCreateInvite, useCurrentTurn, useDeleteRound, useLeaveRound, useMissTurn, useRoundDetail } from "@/features/rounds/hooks";
+import { useCompleteTurn, useCreateInvite, useCurrentTurn, useLeaveRound, useMissTurn, useResolvePenalty, useRoundDetail } from "@/features/rounds/hooks";
+import { subscribePush } from "@/lib/api/endpoints";
+import { createPushSubscription } from "@/lib/push";
 import type { InviteLinkResponse } from "@/lib/api/types";
+
+function toFriendlyError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : "";
+  if (!message) return fallback;
+  const lowered = message.toLowerCase();
+  if (lowered.includes("failed to fetch") || lowered.includes("network")) {
+    return "No pudimos conectar con el servidor. Revisa tu internet e intenta de nuevo.";
+  }
+  if (lowered.includes("today is not an active day")) {
+    return "Esta ronda no esta activa hoy.";
+  }
+  if (lowered.includes("already resolved")) {
+    return "Este turno ya fue resuelto.";
+  }
+  if (lowered.includes("not found")) {
+    return "No encontramos ese turno. Actualiza la pantalla.";
+  }
+  return fallback;
+}
 
 export default function RoundTablePage() {
   const params = useParams<{ roundId: string }>();
   const roundId = params.roundId;
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const detail = useRoundDetail(roundId);
   const currentTurn = useCurrentTurn(roundId);
   const complete = useCompleteTurn(roundId);
   const miss = useMissTurn(roundId);
+  const resolvePenalty = useResolvePenalty(roundId);
   const leave = useLeaveRound();
-  const removeRound = useDeleteRound();
   const inviteMutation = useCreateInvite();
   const [inviteData, setInviteData] = useState<InviteLinkResponse | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [turnAdvanced, setTurnAdvanced] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showExcuseModal, setShowExcuseModal] = useState(false);
+  const [pushStatus, setPushStatus] = useState<string | null>(null);
+  const previousTurnUserRef = useRef<string | undefined>(undefined);
 
   const EXCUSES = [
     "Me abdujeron los aliens 👽",
@@ -48,12 +73,60 @@ export default function RoundTablePage() {
   const isMyTurn = current?.user_id === user?.id;
   const isAdmin = detail.data?.round.created_by === user?.id;
   const canResolveTurn = Boolean(current && (isMyTurn || isAdmin));
+  const weekdays = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+
+  const handleActivateReminders = async () => {
+    setActionError(null);
+    setPushStatus(null);
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      setActionError("Falta configurar notificaciones en el servidor.");
+      return;
+    }
+    try {
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        setActionError("Tu navegador no soporta notificaciones.");
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setActionError("Necesitamos permiso para enviarte recordatorios.");
+        return;
+      }
+      const subscription = await createPushSubscription(vapidPublicKey);
+      const json = subscription.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        setActionError("No se pudo crear la suscripcion de notificaciones.");
+        return;
+      }
+      await subscribePush(token as string, {
+        endpoint: json.endpoint,
+        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+      });
+      setPushStatus("Recordatorios activados.");
+    } catch (error) {
+      setActionError(toFriendlyError(error, "No pudimos activar recordatorios ahora."));
+    }
+  };
+
+  useEffect(() => {
+    const previous = previousTurnUserRef.current;
+    const next = current?.user_id;
+    if (previous && next && previous !== next) {
+      setTurnAdvanced(true);
+      const timeout = setTimeout(() => setTurnAdvanced(false), 1200);
+      previousTurnUserRef.current = next;
+      return () => clearTimeout(timeout);
+    }
+    previousTurnUserRef.current = next;
+  }, [current?.user_id]);
 
   const handleComplete = async () => {
     if (!current) {
       return;
     }
     setActionError(null);
+    setActionSuccess(null);
     try {
       await complete.mutateAsync(current.id);
 
@@ -67,8 +140,9 @@ export default function RoundTablePage() {
       if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
         window.navigator.vibrate([30, 50, 30]);
       }
+      setActionSuccess("Listo. Confirmamos que trajiste el mate.");
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "No se pudo completar el turno");
+      setActionError(toFriendlyError(error, "No pudimos confirmar tu turno. Intenta de nuevo."));
     }
   };
 
@@ -77,21 +151,25 @@ export default function RoundTablePage() {
       return;
     }
     setActionError(null);
+    setActionSuccess(null);
     try {
       await miss.mutateAsync({ turnId: current.id, excuse });
       setShowExcuseModal(false);
+      setActionSuccess("Se marco la falta y el turno paso al siguiente integrante.");
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "No se pudo marcar la falta");
+      console.error("Failed to mark missed turn", error);
+      setActionError(toFriendlyError(error, "No pudimos registrar la falta. Intenta de nuevo."));
     }
   };
 
   const handleInvite = async () => {
     setActionError(null);
+    setActionSuccess(null);
     try {
       const invite = await inviteMutation.mutateAsync(roundId);
       setInviteData(invite);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "No se pudo crear la invitacion");
+      setActionError(toFriendlyError(error, "No pudimos generar la invitacion."));
     }
   };
 
@@ -100,48 +178,42 @@ export default function RoundTablePage() {
       return;
     }
     setActionError(null);
+    setActionSuccess(null);
     try {
       await leave.mutateAsync(roundId);
       router.push("/rondas");
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "No se pudo salir de la ronda");
+      setActionError(toFriendlyError(error, "No pudimos sacarte de la ronda. Intenta de nuevo."));
     }
   };
 
-  const handleDeleteRound = async () => {
-    if (!confirm("Seguro que queres eliminar esta ronda? Esta accion no se puede deshacer.")) {
-      return;
-    }
+  const handleResolvePenalty = async (penaltyId: string) => {
     setActionError(null);
+    setActionSuccess(null);
     try {
-      await removeRound.mutateAsync(roundId);
-      router.push("/rondas");
+      await resolvePenalty.mutateAsync(penaltyId);
+      setActionSuccess("Prenda marcada como resuelta.");
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "No se pudo eliminar la ronda");
+      console.error("Failed to resolve penalty", error);
+      setActionError(toFriendlyError(error, "No pudimos resolver la prenda."));
     }
   };
+
+  const penalties = detail.data?.penalties ?? [];
 
   return (
     <>
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-3 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-zinc-900">{detail.data?.round.name ?? "Mesa matera"}</h1>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Mesa matera</p>
+          <h1 className="text-[var(--text-lg-fluid)] font-extrabold text-zinc-900">{detail.data?.round.name ?? "Mesa matera"}</h1>
+          <p className="text-[var(--text-xs-fluid)] uppercase tracking-wide text-zinc-500">Mesa matera</p>
         </div>
-        <button
-          onClick={() => router.push(`/rondas/${roundId}/ranking`)}
-          className="rounded-full bg-white p-2 ring-1 ring-zinc-200"
-          aria-label="Ir al ranking"
-        >
-          <span className="material-symbols-outlined text-zinc-700">emoji_events</span>
-        </button>
       </header>
-
-      <RoundSubNav roundId={roundId} />
+      <RoundSubnav roundId={roundId} />
 
       <Card>
         {loading ? (
-          <LoadingSkeleton className="h-72 w-full rounded-2xl" />
+          <LoadingSkeleton className="h-[clamp(18rem,58vw,24rem)] w-full rounded-2xl" />
         ) : (
           <MateTable
             members={
@@ -158,16 +230,17 @@ export default function RoundTablePage() {
 
       <Card className="mt-4">
         {current ? (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-zinc-700">
-              Turno actual: <span className="font-bold">{detail.data?.current_turn?.user_name ?? "Sin definir"}</span>
-            </p>
+          <div className={`flex items-center justify-between ${turnAdvanced ? "animate-subtle-pop" : ""}`}>
+            <div>
+              <p className="text-[var(--text-xs-fluid)] font-semibold uppercase tracking-wide text-emerald-700">Turno actual</p>
+              <p className="text-[var(--text-sm-fluid)] text-zinc-700">Hoy lleva mate: <span className="font-bold">{detail.data?.current_turn?.user_name ?? "Sin definir"}</span></p>
+            </div>
             <div className="flex items-center gap-2">
               <TurnStatusChip status={current.status} />
-              {current.status === "pending" && (
+              {(current.status === "pending" || current.status === "reassigned") && (
                 <button
                   onClick={() => setShowShare(true)}
-                  className="flex items-center justify-center rounded-full bg-zinc-100 p-1 text-zinc-600 hover:bg-zinc-200"
+                  className="flex items-center justify-center rounded-full bg-zinc-100 p-2 text-zinc-600 hover:bg-zinc-200"
                   title="Anunciar turno"
                 >
                   <span className="material-symbols-outlined text-[18px]">ios_share</span>
@@ -176,11 +249,15 @@ export default function RoundTablePage() {
             </div>
           </div>
         ) : (
-          <p className="text-sm text-zinc-600">No hay turno activo.</p>
+          <p className="text-[var(--text-sm-fluid)] text-zinc-600">No hay un turno activo en este momento.</p>
         )}
 
-        <Button className="mt-4" onClick={handleComplete} disabled={!canResolveTurn || complete.isPending || miss.isPending}>
-          {complete.isPending ? "Guardando..." : "Traje el mate"}
+        <Button
+          className={`mt-4 ${complete.isPending ? "animate-subtle-pop" : ""}`}
+          onClick={handleComplete}
+          disabled={!canResolveTurn || complete.isPending || miss.isPending}
+        >
+          {complete.isPending ? "Guardando..." : "🧉 Llevo el mate"}
         </Button>
         <Button
           className="mt-2"
@@ -188,11 +265,37 @@ export default function RoundTablePage() {
           onClick={() => setShowExcuseModal(true)}
           disabled={!canResolveTurn || complete.isPending || miss.isPending}
         >
-          {miss.isPending ? "Guardando..." : "No traje mate"}
+          {miss.isPending ? "Guardando..." : "❌ No puedo llevar"}
         </Button>
-        {!canResolveTurn && current ? <p className="mt-2 text-xs text-zinc-500">Solo {detail.data?.current_turn?.user_name} o el admin pueden marcar este turno.</p> : null}
-        {isAdmin ? <p className="mt-2 text-xs text-zinc-500">Sos admin: podes gestionar turnos y compartir invitacion.</p> : null}
-        {actionError ? <p className="mt-2 text-xs text-red-600">{actionError}</p> : null}
+        {!canResolveTurn && current ? <p className="mt-2 text-[var(--text-xs-fluid)] text-zinc-500">Solo {detail.data?.current_turn?.user_name} (o quien administre la ronda) puede confirmar este turno.</p> : null}
+        {isAdmin ? <p className="mt-2 text-[var(--text-xs-fluid)] text-zinc-500">Sos admin: podes gestionar turnos y compartir invitacion.</p> : null}
+        {actionError ? <p className="mt-2 text-[var(--text-xs-fluid)] text-red-600">{actionError}</p> : null}
+        {actionSuccess ? <p className="mt-2 text-[var(--text-xs-fluid)] text-emerald-700">{actionSuccess}</p> : null}
+        <Button className="mt-3" variant="secondary" onClick={handleActivateReminders}>
+          🔔 Activar recordatorios de mate
+        </Button>
+        {pushStatus ? <p className="mt-2 text-[var(--text-xs-fluid)] text-emerald-700">{pushStatus}</p> : null}
+      </Card>
+
+      <Card className="mt-4">
+        <p className="text-[var(--text-sm-fluid)] font-semibold text-zinc-900">Proximos mates</p>
+        {detail.data?.upcoming_turns?.length ? (
+          <ul className="mt-2 space-y-2">
+            {detail.data.upcoming_turns.map((turn) => {
+              const d = new Date(`${turn.date}T00:00:00`);
+              return (
+                <li key={turn.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
+                  <p className="text-[var(--text-sm-fluid)] text-zinc-700">
+                    <span className="font-semibold">{weekdays[d.getDay()]}</span> {"->"} {turn.user_name}
+                  </p>
+                  <TurnStatusChip status={turn.status} />
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="mt-2 text-[var(--text-sm-fluid)] text-zinc-500">No hay turnos programados.</p>
+        )}
       </Card>
 
       {isAdmin ? (
@@ -201,26 +304,60 @@ export default function RoundTablePage() {
           <Button className="mt-3" variant="secondary" onClick={handleInvite} disabled={inviteMutation.isPending}>
             {inviteMutation.isPending ? "Generando invitacion..." : "Compartir ronda"}
           </Button>
-          <Button
-            className="mt-2 bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300 disabled:text-white"
-            variant="danger"
-            onClick={handleDeleteRound}
-            disabled={removeRound.isPending}
-          >
-            {removeRound.isPending ? "Eliminando..." : "Eliminar ronda"}
-          </Button>
           {inviteData ? <div className="mt-3"><InviteCodeCard title="Invitacion de la ronda" code={inviteData.invite_code} link={inviteData.invite_link} /></div> : null}
         </Card>
       ) : null}
 
-      {!isAdmin ? (
-        <Card className="mt-4">
-          <p className="text-sm font-semibold text-zinc-900">Participacion</p>
-          <Button className="mt-3" variant="secondary" onClick={handleLeave} disabled={leave.isPending}>
-            {leave.isPending ? "Saliendo..." : "Salir de esta ronda"}
-          </Button>
-        </Card>
-      ) : null}
+      <Card className="mt-4">
+        <p className="text-sm font-semibold text-zinc-900">Participacion</p>
+        <Button className="mt-3" variant="secondary" onClick={handleLeave} disabled={leave.isPending || isAdmin}>
+          {leave.isPending ? "Saliendo..." : "Salir de esta ronda"}
+        </Button>
+        {isAdmin ? (
+          <p className="mt-2 text-xs text-zinc-500">Como creador no podes salir de la ronda.</p>
+        ) : null}
+      </Card>
+
+      <Card className="mt-4">
+        <p className="text-sm font-semibold text-zinc-900">Prendas</p>
+        {penalties.length === 0 ? (
+          <p className="mt-2 text-sm text-zinc-500">Todavia no hay prendas en esta ronda.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {penalties.map((penalty) => (
+              <div key={penalty.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {penalty.user_name} - {penalty.type}
+                    </p>
+                    {penalty.description ? (
+                      <p className="text-xs text-zinc-600">Excusa: {penalty.description}</p>
+                    ) : null}
+                  </div>
+                  <span
+                    className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase ${
+                      penalty.resolved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {penalty.resolved ? "Resuelta" : "Pendiente"}
+                  </span>
+                </div>
+                {isAdmin && !penalty.resolved ? (
+                  <Button
+                    className="mt-2"
+                    variant="secondary"
+                    onClick={() => handleResolvePenalty(penalty.id)}
+                    disabled={resolvePenalty.isPending}
+                  >
+                    Marcar como resuelta
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <BottomNav currentRoundId={roundId} />
 

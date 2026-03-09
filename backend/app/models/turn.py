@@ -1,8 +1,8 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,8 +11,9 @@ from app.db.session import Base
 
 class TurnStatus(str, enum.Enum):
     pending = "pending"
-    completed = "completed"
-    missed = "missed"
+    confirmed = "confirmed"
+    skipped = "skipped"
+    reassigned = "reassigned"
 
 
 class Turn(Base):
@@ -22,6 +23,7 @@ class Turn(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     round_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rounds.id"), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    turn_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     turn_index: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[TurnStatus] = mapped_column(
         Enum(TurnStatus, name="turn_status"),

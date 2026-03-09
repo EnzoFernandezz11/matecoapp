@@ -38,7 +38,7 @@ export default function RoundsPage() {
       <header className="mb-6 flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-zinc-900">Mis rondas</h1>
-          <p className="text-sm text-zinc-600">Organiza quien lleva el mate en tu cursada</p>
+          <p className="text-sm text-zinc-600">Organiza los turnos de mate de tu cursada</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Link
