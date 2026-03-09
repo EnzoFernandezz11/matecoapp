@@ -27,7 +27,7 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY . .
 
-# Azure App Service uses PORT env variable (default 8000)
+# Render injects PORT env variable (default 8000)
 ENV PORT=8000
 EXPOSE 8000
 
