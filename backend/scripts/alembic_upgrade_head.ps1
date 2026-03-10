@@ -16,6 +16,10 @@ try {
 
   alembic upgrade head
 
+  if ($LASTEXITCODE -ne 0) {
+    throw "Alembic upgrade failed with exit code $LASTEXITCODE"
+  }
+
   Write-Host "Alembic upgrade completed successfully."
 }
 finally {

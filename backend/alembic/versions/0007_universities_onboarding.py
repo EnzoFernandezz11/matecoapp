@@ -51,8 +51,16 @@ def _unique_constraint_exists(inspector: sa.Inspector, table_name: str, constrai
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = inspect(bind)
-    university_status_enum = sa.Enum("active", "pending_review", "merged", "deleted", name="university_status")
-    university_status_enum.create(bind, checkfirst=True)
+    university_status_type = postgresql.ENUM("active", "pending_review", "merged", "deleted", name="university_status")
+    university_status_type.create(bind, checkfirst=True)
+    university_status_enum = postgresql.ENUM(
+        "active",
+        "pending_review",
+        "merged",
+        "deleted",
+        name="university_status",
+        create_type=False,
+    )
 
     if not inspector.has_table("universities"):
         op.create_table(
@@ -64,7 +72,7 @@ def upgrade() -> None:
             sa.Column("city", sa.String(length=120), nullable=True),
             sa.Column(
                 "status",
-                sa.Enum("active", "pending_review", "merged", "deleted", name="university_status"),
+                university_status_enum,
                 nullable=False,
                 server_default="active",
             ),
