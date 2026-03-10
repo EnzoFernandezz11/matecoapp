@@ -81,10 +81,10 @@ export function ShareCard({ userName, avatarUrl, role, statsText }: ShareCardPro
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="relative w-full overflow-hidden rounded-xl">
+      <div className="relative w-full max-w-[400px] overflow-hidden rounded-xl">
         <div
           ref={cardRef}
-          className={`relative aspect-[3/4] w-full max-w-[400px] overflow-hidden rounded-2xl p-8 shadow-2xl ${getStyleForRole()} flex flex-col justify-between`}
+          className={`relative aspect-[3/4] w-full overflow-hidden rounded-2xl px-6 py-8 shadow-2xl ${getStyleForRole()} flex flex-col items-center`}
         >
           <div
             className="absolute inset-0 opacity-10 mix-blend-overlay"
@@ -94,26 +94,28 @@ export function ShareCard({ userName, avatarUrl, role, statsText }: ShareCardPro
             }}
           />
 
-          <div className="relative z-10 mt-4 text-center text-xl font-black uppercase tracking-widest opacity-80">
+          {/* Title */}
+          <div className="relative z-10 text-center text-base font-black uppercase tracking-widest opacity-80">
             {getTitleForRole()}
           </div>
 
-          <div className="relative z-10 my-auto flex flex-col items-center gap-6">
+          {/* Avatar + Name + Stats centered */}
+          <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-4">
             <div className={`rounded-full p-2 ${role === "RATA" ? "bg-red-500/20" : "bg-white/10"}`}>
-              <Avatar name={userName} src={avatarUrl} className="h-24 w-24" />
+              <Avatar name={userName} src={avatarUrl} className="h-20 w-20" />
             </div>
 
-            <div className="text-center">
-              <h2 className="mb-2 text-4xl font-black">{userName}</h2>
-              <p
-                className={`rounded-xl p-4 text-lg font-medium opacity-90 ${role === "RATA" ? "bg-red-950/50" : "bg-black/20"}`}
-              >
-                {statsText}
-              </p>
-            </div>
+            <h2 className="max-w-full text-center text-2xl font-black leading-tight">{userName}</h2>
+
+            <p
+              className={`w-full rounded-xl px-4 py-3 text-center text-base font-medium opacity-90 ${role === "RATA" ? "bg-red-950/50" : "bg-black/20"}`}
+            >
+              {statsText}
+            </p>
           </div>
 
-          <div className="relative z-10 pb-4 text-center text-sm font-bold tracking-widest opacity-60">
+          {/* Footer */}
+          <div className="relative z-10 text-center text-xs font-bold tracking-widest opacity-60">
             CREA TU RONDA EN MATECO.APP
           </div>
         </div>

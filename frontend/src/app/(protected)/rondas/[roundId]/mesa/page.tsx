@@ -17,8 +17,6 @@ import { Card } from "@/components/ui/card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAuth } from "@/features/auth/use-auth";
 import { useCompleteTurn, useCreateInvite, useCurrentTurn, useLeaveRound, useMissTurn, useResolvePenalty, useRoundDetail, useSubmitVote } from "@/features/rounds/hooks";
-import { subscribePush } from "@/lib/api/endpoints";
-import { createPushSubscription } from "@/lib/push";
 import type { InviteLinkResponse, PenaltyVoteResponse } from "@/lib/api/types";
 
 function toFriendlyError(error: unknown, fallback: string) {
@@ -60,7 +58,6 @@ export default function RoundTablePage() {
   const [showShare, setShowShare] = useState(false);
   const [closedVoteResult, setClosedVoteResult] = useState<PenaltyVoteResponse | null>(null);
   const [showExcuseModal, setShowExcuseModal] = useState(false);
-  const [pushStatus, setPushStatus] = useState<string | null>(null);
   const previousTurnUserRef = useRef<string | undefined>(undefined);
 
   const EXCUSES = [
@@ -78,40 +75,6 @@ export default function RoundTablePage() {
   const isAdmin = detail.data?.round.created_by === user?.id;
   const canResolveTurn = Boolean(current && (isMyTurn || isAdmin));
   const weekdays = ["Domingo", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-
-  const handleActivateReminders = async () => {
-    setActionError(null);
-    setPushStatus(null);
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!vapidPublicKey) {
-      setActionError("Falta configurar notificaciones en el servidor.");
-      return;
-    }
-    try {
-      if (typeof window === "undefined" || !("Notification" in window)) {
-        setActionError("Tu navegador no soporta notificaciones.");
-        return;
-      }
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setActionError("Necesitamos permiso para enviarte recordatorios.");
-        return;
-      }
-      const subscription = await createPushSubscription(vapidPublicKey);
-      const json = subscription.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-        setActionError("No se pudo crear la suscripcion de notificaciones.");
-        return;
-      }
-      await subscribePush(token as string, {
-        endpoint: json.endpoint,
-        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-      });
-      setPushStatus("Recordatorios activados.");
-    } catch (error) {
-      setActionError(toFriendlyError(error, "No pudimos activar recordatorios ahora."));
-    }
-  };
 
   useEffect(() => {
     const previous = previousTurnUserRef.current;
