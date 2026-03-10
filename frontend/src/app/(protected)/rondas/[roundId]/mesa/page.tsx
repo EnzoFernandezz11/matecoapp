@@ -42,7 +42,7 @@ export default function RoundTablePage() {
   const params = useParams<{ roundId: string }>();
   const roundId = params.roundId;
   const router = useRouter();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const detail = useRoundDetail(roundId);
   const currentTurn = useCurrentTurn(roundId);
   const complete = useCompleteTurn(roundId);
