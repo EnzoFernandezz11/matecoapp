@@ -68,30 +68,6 @@ export interface Penalty {
   created_at: string;
 }
 
-export interface RoundDetail {
-  round: Round;
-  members: RoundMember[];
-  current_turn: {
-    id: string;
-    user_id: string;
-    user_name: string;
-    turn_date?: string | null;
-    turn_index: number;
-    status: TurnStatus;
-    excuse?: string | null;
-    created_at: string;
-  } | null;
-  upcoming_turns: Array<{
-    id: string;
-    date: string;
-    user_id: string;
-    user_name: string;
-    status: TurnStatus;
-  }>;
-  penalties: Penalty[];
-  ranking: RankingEntry[];
-}
-
 export interface InviteLinkResponse {
   invite_code: string;
   invite_link: string;
@@ -148,4 +124,52 @@ export interface AdminUserDetail {
   turns_total: number;
   turns_completed: number;
   turns_missed: number;
+}
+
+/* ---- Penalty Voting ---- */
+
+export interface PenaltyVoteOption {
+  id: string;
+  penalty_name: string;
+  vote_count: number;
+}
+
+export interface PenaltyVoteResponse {
+  id: string;
+  round_id: string;
+  failed_user_id: string;
+  failed_user_name: string;
+  turn_id: string | null;
+  created_at: string;
+  expires_at: string;
+  status: "active" | "closed";
+  winning_penalty: string | null;
+  options: PenaltyVoteOption[];
+  user_has_voted: boolean;
+}
+
+export interface RoundDetail {
+  round: Round;
+  members: RoundMember[];
+  current_turn: {
+    id: string;
+    user_id: string;
+    user_name: string;
+    turn_date?: string | null;
+    turn_index: number;
+    status: TurnStatus;
+    excuse?: string | null;
+    created_at: string;
+  } | null;
+  upcoming_turns: Array<{
+    id: string;
+    date: string;
+    user_id: string;
+    user_name: string;
+    status: TurnStatus;
+  }>;
+  penalties: Penalty[];
+  ranking: RankingEntry[];
+  active_vote: PenaltyVoteResponse | null;
+  latest_vote_result: PenaltyVoteResponse | null;
 }

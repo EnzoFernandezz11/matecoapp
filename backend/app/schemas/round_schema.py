@@ -94,6 +94,9 @@ class JoinByCodeRequest(BaseModel):
     invite_code: str
 
 
+from app.schemas.vote_schema import PenaltyVoteResponse
+
+
 class RoundDetailResponse(BaseModel):
     round: RoundResponse
     members: list[RoundMemberResponse]
@@ -101,3 +104,5 @@ class RoundDetailResponse(BaseModel):
     upcoming_turns: list[UpcomingTurnSummary]
     penalties: list[PenaltyResponse]
     ranking: list[RankingEntry]
+    active_vote: PenaltyVoteResponse | None = None
+    latest_vote_result: PenaltyVoteResponse | None = None

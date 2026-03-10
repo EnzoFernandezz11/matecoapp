@@ -12,8 +12,10 @@ from app.routers.push_router import router as push_router
 from app.routers.round_router import router as round_router
 from app.routers.turn_router import router as turn_router
 from app.routers.user_router import router as user_router
+from app.routers.vote_router import router as vote_router
 from app.db.session import SessionLocal
 from app.services.turn_notification_service import send_daily_turn_notifications
+from app.services.vote_service import close_all_expired_votes
 
 
 app = FastAPI(title="MatecoApp API", version="0.1.0")
@@ -35,6 +37,7 @@ app.include_router(round_router)
 app.include_router(turn_router)
 app.include_router(admin_router)
 app.include_router(push_router)
+app.include_router(vote_router)
 
 
 async def _daily_notification_loop() -> None:
@@ -50,6 +53,12 @@ async def _daily_notification_loop() -> None:
                 app.state.last_notification_run = today_key
             finally:
                 db.close()
+        # Close expired penalty votes every check
+        db = SessionLocal()
+        try:
+            close_all_expired_votes(db)
+        finally:
+            db.close()
         await asyncio.sleep(300)
 
 

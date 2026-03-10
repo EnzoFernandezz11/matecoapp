@@ -28,6 +28,10 @@ class Settings(BaseSettings):
         "http://localhost:3000,http://127.0.0.1:3000",
         alias="CORS_ORIGINS",
     )
+    frontend_url: str = Field(
+        "http://localhost:3000",
+        alias="FRONTEND_URL",
+    )
 
 
 @lru_cache

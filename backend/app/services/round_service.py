@@ -282,6 +282,10 @@ def get_round_detail(db: Session, round_id: UUID, user_id: UUID) -> RoundDetailR
 
     current_turn = get_effective_turn_for_round_date(round_obj, today)
 
+    from app.services.vote_service import get_active_vote, get_latest_closed_vote
+    active_vote = get_active_vote(db, round_id, user_id)
+    latest_vote_result = get_latest_closed_vote(db, round_id, user_id)
+
     return RoundDetailResponse(
         round=round_obj,
         members=sorted(round_obj.members, key=lambda item: item.joined_at),
@@ -289,6 +293,8 @@ def get_round_detail(db: Session, round_id: UUID, user_id: UUID) -> RoundDetailR
         upcoming_turns=_build_upcoming_turns(round_obj, today),
         penalties=_build_penalties(round_obj),
         ranking=_build_ranking(round_obj),
+        active_vote=active_vote,
+        latest_vote_result=latest_vote_result,
     )
 
 
@@ -360,13 +366,17 @@ def leave_round(db: Session, round_id: UUID, user: User) -> None:
 
 
 def build_invite_link(round_obj: Round) -> str:
-    return f"mateco.app/join/{round_obj.invite_code}"
+    from app.core.config import get_settings
+    base = get_settings().frontend_url.rstrip("/")
+    return f"{base}/rondas/join/{round_obj.invite_code}"
 
 
 def apply_missed_penalty(
     db: Session, round_obj: Round, user_id: UUID, turn_id: UUID, description: str | None = None
 ) -> Penalty | None:
     if round_obj.penalty_mode == PenaltyMode.vote:
+        from app.services.vote_service import create_vote_session
+        create_vote_session(db, round_obj.id, user_id, turn_id)
         return None
 
     existing_penalty = db.scalar(select(Penalty).where(Penalty.turn_id == turn_id))

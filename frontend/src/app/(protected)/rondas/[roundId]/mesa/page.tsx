@@ -6,6 +6,8 @@ import confetti from "canvas-confetti";
 
 import { InviteCodeCard } from "@/components/rounds/invite-code-card";
 import { MateTable } from "@/components/rounds/mate-table";
+import { PenaltyVoteCard } from "@/components/rounds/penalty-vote-card";
+import { PenaltyVoteResults } from "@/components/rounds/penalty-vote-results";
 import { RoundSubnav } from "@/components/rounds/round-subnav";
 import { ShareCard } from "@/components/rounds/share-card";
 import { TurnStatusChip } from "@/components/rounds/turn-status-chip";
@@ -14,10 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { useAuth } from "@/features/auth/use-auth";
-import { useCompleteTurn, useCreateInvite, useCurrentTurn, useLeaveRound, useMissTurn, useResolvePenalty, useRoundDetail } from "@/features/rounds/hooks";
+import { useCompleteTurn, useCreateInvite, useCurrentTurn, useLeaveRound, useMissTurn, useResolvePenalty, useRoundDetail, useSubmitVote } from "@/features/rounds/hooks";
 import { subscribePush } from "@/lib/api/endpoints";
 import { createPushSubscription } from "@/lib/push";
-import type { InviteLinkResponse } from "@/lib/api/types";
+import type { InviteLinkResponse, PenaltyVoteResponse } from "@/lib/api/types";
 
 function toFriendlyError(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : "";
@@ -48,6 +50,7 @@ export default function RoundTablePage() {
   const complete = useCompleteTurn(roundId);
   const miss = useMissTurn(roundId);
   const resolvePenalty = useResolvePenalty(roundId);
+  const submitVote = useSubmitVote(roundId);
   const leave = useLeaveRound();
   const inviteMutation = useCreateInvite();
   const [inviteData, setInviteData] = useState<InviteLinkResponse | null>(null);
@@ -55,6 +58,7 @@ export default function RoundTablePage() {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [turnAdvanced, setTurnAdvanced] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [closedVoteResult, setClosedVoteResult] = useState<PenaltyVoteResponse | null>(null);
   const [showExcuseModal, setShowExcuseModal] = useState(false);
   const [pushStatus, setPushStatus] = useState<string | null>(null);
   const previousTurnUserRef = useRef<string | undefined>(undefined);
@@ -200,6 +204,14 @@ export default function RoundTablePage() {
   };
 
   const penalties = detail.data?.penalties ?? [];
+  const serverActiveVote = detail.data?.active_vote ?? null;
+  const activeVote = closedVoteResult ? null : serverActiveVote;
+  const latestVoteResult = closedVoteResult ?? detail.data?.latest_vote_result ?? null;
+
+  // Clear local override once the server catches up
+  if (closedVoteResult && !serverActiveVote) {
+    // Server already reflects the closed state, no need for local override
+  }
 
   return (
     <>
@@ -277,17 +289,61 @@ export default function RoundTablePage() {
         {pushStatus ? <p className="mt-2 text-[var(--text-xs-fluid)] text-emerald-700">{pushStatus}</p> : null}
       </Card>
 
+      {activeVote && user && (
+        <PenaltyVoteCard
+          vote={activeVote}
+          members={detail.data?.members ?? []}
+          currentUserId={user.id}
+          onVote={(optionId) => submitVote.mutate({ voteId: activeVote.id, optionId }, {
+            onSuccess: (data) => {
+              if (data.status === "closed") {
+                setClosedVoteResult(data);
+              }
+            },
+          })}
+          isSubmitting={submitVote.isPending}
+        />
+      )}
+
+      {latestVoteResult && !activeVote && (
+        <PenaltyVoteResults vote={latestVoteResult} />
+      )}
+
       <Card className="mt-4">
-        <p className="text-[var(--text-sm-fluid)] font-semibold text-zinc-900">Proximos mates</p>
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[20px] text-emerald-700">calendar_month</span>
+          <p className="text-[var(--text-sm-fluid)] font-semibold text-zinc-900">Próximos mates</p>
+        </div>
         {detail.data?.upcoming_turns?.length ? (
-          <ul className="mt-2 space-y-2">
+          <ul className="mt-3 space-y-1">
             {detail.data.upcoming_turns.map((turn) => {
               const d = new Date(`${turn.date}T00:00:00`);
+              const member = detail.data?.members?.find((m) => m.user.id === turn.user_id);
+              const initials = turn.user_name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
               return (
-                <li key={turn.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
-                  <p className="text-[var(--text-sm-fluid)] text-zinc-700">
-                    <span className="font-semibold">{weekdays[d.getDay()]}</span> {"->"} {turn.user_name}
-                  </p>
+                <li key={turn.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-zinc-50">
+                  {/* Date block */}
+                  <div className="flex w-10 flex-col items-center">
+                    <span className="text-[10px] font-semibold uppercase leading-tight text-zinc-400">{weekdays[d.getDay()].slice(0, 3)}</span>
+                    <span className="text-base font-bold leading-tight text-zinc-800">{d.getDate()}</span>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-8 w-px bg-zinc-200" />
+
+                  {/* Avatar */}
+                  {member?.user.avatar_url ? (
+                    <img src={member.user.avatar_url} alt={turn.user_name} className="h-8 w-8 rounded-full object-cover ring-2 ring-white" />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700 ring-2 ring-white">
+                      {initials}
+                    </div>
+                  )}
+
+                  {/* Name */}
+                  <p className="flex-1 truncate text-[var(--text-sm-fluid)] font-medium text-zinc-800">{turn.user_name}</p>
+
+                  {/* Status */}
                   <TurnStatusChip status={turn.status} />
                 </li>
               );
@@ -307,16 +363,6 @@ export default function RoundTablePage() {
           {inviteData ? <div className="mt-3"><InviteCodeCard title="Invitacion de la ronda" code={inviteData.invite_code} link={inviteData.invite_link} /></div> : null}
         </Card>
       ) : null}
-
-      <Card className="mt-4">
-        <p className="text-sm font-semibold text-zinc-900">Participacion</p>
-        <Button className="mt-3" variant="secondary" onClick={handleLeave} disabled={leave.isPending || isAdmin}>
-          {leave.isPending ? "Saliendo..." : "Salir de esta ronda"}
-        </Button>
-        {isAdmin ? (
-          <p className="mt-2 text-xs text-zinc-500">Como creador no podes salir de la ronda.</p>
-        ) : null}
-      </Card>
 
       <Card className="mt-4">
         <p className="text-sm font-semibold text-zinc-900">Prendas</p>
@@ -357,6 +403,16 @@ export default function RoundTablePage() {
             ))}
           </div>
         )}
+      </Card>
+
+      <Card className="mt-4">
+        <p className="text-sm font-semibold text-zinc-900">Participacion</p>
+        <Button className="mt-3" variant="secondary" onClick={handleLeave} disabled={leave.isPending || isAdmin}>
+          {leave.isPending ? "Saliendo..." : "Salir de esta ronda"}
+        </Button>
+        {isAdmin ? (
+          <p className="mt-2 text-xs text-zinc-500">Como creador no podes salir de la ronda.</p>
+        ) : null}
       </Card>
 
       <BottomNav currentRoundId={roundId} />

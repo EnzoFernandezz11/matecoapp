@@ -17,6 +17,7 @@ import {
   missTurn,
   resolvePenalty,
   skipTurn,
+  submitPenaltyVote,
 } from "@/lib/api/endpoints";
 import type { RoundCreateInput } from "@/lib/api/types";
 
@@ -150,6 +151,18 @@ export function useResolvePenalty(roundId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rounds", roundId] });
       queryClient.invalidateQueries({ queryKey: ["rounds"] });
+    },
+  });
+}
+
+export function useSubmitVote(roundId: string) {
+  const queryClient = useQueryClient();
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: ({ voteId, optionId }: { voteId: string; optionId: string }) =>
+      submitPenaltyVote(voteId, optionId, token as string),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rounds", roundId] });
     },
   });
 }

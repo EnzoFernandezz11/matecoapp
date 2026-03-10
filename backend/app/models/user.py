@@ -30,3 +30,4 @@ class User(Base):
     turns = relationship("Turn", back_populates="user")
     penalties = relationship("Penalty", back_populates="user")
     push_subscriptions = relationship("PushSubscription", back_populates="user", cascade="all, delete-orphan")
+    penalty_votes = relationship("PenaltyVote", back_populates="failed_user")

@@ -42,3 +42,4 @@ class Round(Base):
     members = relationship("RoundMember", back_populates="round", cascade="all, delete-orphan")
     turns = relationship("Turn", back_populates="round", cascade="all, delete-orphan")
     penalties = relationship("Penalty", back_populates="round", cascade="all, delete-orphan")
+    penalty_votes = relationship("PenaltyVote", back_populates="round", cascade="all, delete-orphan")

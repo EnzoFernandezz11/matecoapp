@@ -6,6 +6,7 @@ import type {
   AdminUsersListResponse,
   InviteLinkResponse,
   Penalty,
+  PenaltyVoteResponse,
   Round,
   RoundCreateInput,
   RoundDetail,
@@ -209,6 +210,30 @@ export function subscribePush(
     {
       method: "POST",
       body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+// Votes
+export function fetchActiveVote(roundId: string, token: string): Promise<PenaltyVoteResponse | null> {
+  return apiFetch<PenaltyVoteResponse | null>(`/votes/active/${roundId}`, {}, token);
+}
+
+export function fetchVoteResults(roundId: string, token: string): Promise<PenaltyVoteResponse | null> {
+  return apiFetch<PenaltyVoteResponse | null>(`/votes/results/${roundId}`, {}, token);
+}
+
+export function submitPenaltyVote(
+  voteId: string,
+  penaltyOptionId: string,
+  token: string,
+): Promise<PenaltyVoteResponse> {
+  return apiFetch<PenaltyVoteResponse>(
+    "/votes/vote",
+    {
+      method: "POST",
+      body: JSON.stringify({ vote_id: voteId, penalty_option_id: penaltyOptionId }),
     },
     token,
   );
