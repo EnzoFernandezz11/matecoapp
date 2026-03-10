@@ -223,9 +223,9 @@ export default function RoundTablePage() {
       </header>
       <RoundSubnav roundId={roundId} />
 
-      <Card>
+      <Card className="overflow-hidden">
         {loading ? (
-          <LoadingSkeleton className="h-[clamp(18rem,58vw,24rem)] w-full rounded-2xl" />
+          <LoadingSkeleton className="mx-auto aspect-square w-full max-w-[360px] rounded-2xl" />
         ) : (
           <MateTable
             members={
@@ -283,10 +283,6 @@ export default function RoundTablePage() {
         {isAdmin ? <p className="mt-2 text-[var(--text-xs-fluid)] text-zinc-500">Sos admin: podes gestionar turnos y compartir invitacion.</p> : null}
         {actionError ? <p className="mt-2 text-[var(--text-xs-fluid)] text-red-600">{actionError}</p> : null}
         {actionSuccess ? <p className="mt-2 text-[var(--text-xs-fluid)] text-emerald-700">{actionSuccess}</p> : null}
-        <Button className="mt-3" variant="secondary" onClick={handleActivateReminders}>
-          🔔 Activar recordatorios de mate
-        </Button>
-        {pushStatus ? <p className="mt-2 text-[var(--text-xs-fluid)] text-emerald-700">{pushStatus}</p> : null}
       </Card>
 
       {activeVote && user && (
