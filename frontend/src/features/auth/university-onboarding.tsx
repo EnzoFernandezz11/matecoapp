@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -139,7 +138,7 @@ export function UniversityOnboarding() {
               disabled={saving}
               className="w-full px-3 py-2 text-left text-sm font-semibold text-mateco-primary hover:bg-zinc-100"
             >
-              Crear "{query.trim()}"
+              Crear &quot;{query.trim()}&quot;
             </button>
           ) : null}
         </div>
