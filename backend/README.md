@@ -65,3 +65,15 @@ uvicorn app.main:app --reload
 - `GET /rounds/{round_id}/turn`
 - `POST /turns/{turn_id}/complete`
 - `POST /turns/{turn_id}/miss`
+
+## Keep-alive cada 10 minutos
+
+Si tu proveedor duerme el backend por inactividad, puedes hacer ping al endpoint `GET /health` cada 10 minutos:
+
+```bash
+python scripts/keep_alive.py --url https://tu-backend.com/health --interval 600
+```
+
+Notas:
+- `--interval 600` = 10 minutos.
+- Deja el script corriendo en un proceso persistente (PM2, systemd, Task Scheduler, etc.).

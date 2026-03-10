@@ -6,9 +6,29 @@ export interface User {
   name: string;
   email: string;
   avatar_url: string;
+  university_id?: string | null;
   university?: string | null;
   career?: string | null;
+  university_prompt_dismissed_at?: string | null;
   created_at: string;
+}
+
+export interface University {
+  id: string;
+  name: string;
+  country_code: string;
+  city?: string | null;
+  created_at: string;
+}
+
+export interface UniversitySearchResponse {
+  items: University[];
+}
+
+export interface CreateUniversityResponse {
+  created: boolean;
+  university?: University | null;
+  possible_duplicates: University[];
 }
 
 export interface AuthResponse {

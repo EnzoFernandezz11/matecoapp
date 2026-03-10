@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,8 +17,15 @@ class User(Base):
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     avatar_url: Mapped[str] = mapped_column(Text, nullable=False)
+    university_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("universities.id"),
+        nullable=True,
+        index=True,
+    )
     university: Mapped[str | None] = mapped_column(String(255), nullable=True)
     career: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    university_prompt_dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -31,3 +38,8 @@ class User(Base):
     penalties = relationship("Penalty", back_populates="user")
     push_subscriptions = relationship("PushSubscription", back_populates="user", cascade="all, delete-orphan")
     penalty_votes = relationship("PenaltyVote", back_populates="failed_user")
+    university_ref = relationship(
+        "University",
+        back_populates="users",
+        foreign_keys=[university_id],
+    )

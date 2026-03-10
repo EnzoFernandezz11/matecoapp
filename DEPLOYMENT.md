@@ -68,6 +68,25 @@ Expose API URL publicly and set:
 NEXT_PUBLIC_API_URL=https://your-backend-domain
 ```
 
+## 5.1) Keep Backend Awake on Render
+
+If your Render backend sleeps after inactivity, use an external ping every 10 minutes.
+
+This repository includes a GitHub Actions workflow at:
+
+- `.github/workflows/render_keep_alive.yml`
+
+Setup:
+
+1. Go to GitHub repository settings -> Secrets and variables -> Actions.
+2. Create a repository secret named `RENDER_HEALTHCHECK_URL`.
+3. Set it to your backend health URL, for example:
+   - `https://your-backend.onrender.com/health`
+4. Ensure GitHub Actions are enabled for the repository.
+5. Optionally trigger the workflow manually once from Actions -> Render Keep Alive -> Run workflow.
+
+The workflow runs every 10 minutes and performs an HTTP call to your health endpoint.
+
 ## 6) Monorepo Root Directory Notes
 
 For this repository, frontend deployment must use:

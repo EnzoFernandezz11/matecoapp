@@ -12,7 +12,13 @@ from app.models.push_subscription import PushSubscription
 from app.models.round import Round
 from app.models.round_member import RoundMember
 from app.models.turn import Turn, TurnStatus
+from app.models.university import University, UniversityAlias, UniversityStatus
 from app.models.user import User
+from app.schemas.university_schema import (
+    AdminMergeUniversityRequest,
+    AdminRenameUniversityRequest,
+    UniversityResponse,
+)
 from app.schemas.admin_schema import (
     AdminStatsRecentUser,
     AdminStatsResponse,
@@ -23,6 +29,7 @@ from app.schemas.admin_schema import (
     AdminUsersListResponse,
 )
 from app.services.turn_notification_service import send_daily_turn_notifications
+from app.services.university_service import normalize_university_text
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -240,3 +247,94 @@ def run_daily_notifications(
     _ = admin_user
     sent = send_daily_turn_notifications(db)
     return {"sent": sent}
+
+
+@router.get("/universities", response_model=list[UniversityResponse])
+def admin_list_universities(
+    search: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+) -> list[UniversityResponse]:
+    _ = admin_user
+    stmt = select(University).where(University.status != UniversityStatus.deleted)
+    if search and search.strip():
+        pattern = f"%{normalize_university_text(search)}%"
+        stmt = stmt.where(University.normalized_name.ilike(pattern))
+    universities = list(db.scalars(stmt.order_by(University.name.asc()).limit(limit)).all())
+    return [UniversityResponse.model_validate(item) for item in universities]
+
+
+@router.patch("/universities/{university_id}/rename", response_model=UniversityResponse)
+def admin_rename_university(
+    university_id: UUID,
+    payload: AdminRenameUniversityRequest,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+) -> UniversityResponse:
+    _ = admin_user
+    university = db.scalar(select(University).where(University.id == university_id))
+    if university is None or university.status == UniversityStatus.deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="University not found")
+
+    university.name = payload.name.strip()
+    university.normalized_name = normalize_university_text(university.name)
+    db.add(
+        UniversityAlias(
+            university_id=university.id,
+            alias=university.name,
+            normalized_alias=university.normalized_name,
+            source="admin",
+        )
+    )
+    db.commit()
+    db.refresh(university)
+    return UniversityResponse.model_validate(university)
+
+
+@router.post("/universities/{university_id}/merge", response_model=UniversityResponse)
+def admin_merge_university(
+    university_id: UUID,
+    payload: AdminMergeUniversityRequest,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+) -> UniversityResponse:
+    _ = admin_user
+    if university_id == payload.target_university_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot merge into itself")
+
+    source = db.scalar(select(University).where(University.id == university_id))
+    target = db.scalar(select(University).where(University.id == payload.target_university_id))
+    if source is None or target is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="University not found")
+    if source.status == UniversityStatus.deleted or target.status == UniversityStatus.deleted:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid university state")
+
+    db.execute(update(User).where(User.university_id == source.id).values(university_id=target.id, university=target.name))
+    db.execute(update(UniversityAlias).where(UniversityAlias.university_id == source.id).values(university_id=target.id))
+    source.status = UniversityStatus.merged
+    source.merged_into_university_id = target.id
+    db.commit()
+    db.refresh(target)
+    return UniversityResponse.model_validate(target)
+
+
+@router.delete("/universities/{university_id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_university(
+    university_id: UUID,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+) -> Response:
+    _ = admin_user
+    university = db.scalar(select(University).where(University.id == university_id))
+    if university is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="University not found")
+
+    db.execute(
+        update(User)
+        .where(User.university_id == university.id)
+        .values(university_id=None)
+    )
+    university.status = UniversityStatus.deleted
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

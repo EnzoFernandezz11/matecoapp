@@ -11,6 +11,7 @@ from app.routers.auth_router import router as auth_router
 from app.routers.push_router import router as push_router
 from app.routers.round_router import router as round_router
 from app.routers.turn_router import router as turn_router
+from app.routers.university_router import router as university_router
 from app.routers.user_router import router as user_router
 from app.routers.vote_router import router as vote_router
 from app.db.session import SessionLocal
@@ -33,6 +34,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(user_router)
+app.include_router(university_router)
 app.include_router(round_router)
 app.include_router(turn_router)
 app.include_router(admin_router)

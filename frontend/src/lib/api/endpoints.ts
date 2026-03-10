@@ -13,6 +13,8 @@ import type {
   Turn,
   TurnActionResponse,
   User,
+  UniversitySearchResponse,
+  CreateUniversityResponse,
 } from "@/lib/api/types";
 
 export function authWithGoogle(idToken: string): Promise<AuthResponse> {
@@ -38,6 +40,46 @@ export function loginWithEmail(email: string, password: string): Promise<AuthRes
 
 export function fetchMe(token: string): Promise<User> {
   return apiFetch<User>("/auth/me", {}, token);
+}
+
+export function searchUniversities(token: string, query: string, country = "AR"): Promise<UniversitySearchResponse> {
+  const params = new URLSearchParams({ q: query, country, limit: "10" });
+  return apiFetch<UniversitySearchResponse>(`/universities/search?${params.toString()}`, {}, token);
+}
+
+export function createUniversity(
+  token: string,
+  payload: { name: string; country_code?: string; city?: string | null },
+): Promise<CreateUniversityResponse> {
+  return apiFetch<CreateUniversityResponse>(
+    "/universities",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function updateMyUniversity(token: string, universityId: string): Promise<User> {
+  return apiFetch<User>(
+    "/users/me/university",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ university_id: universityId }),
+    },
+    token,
+  );
+}
+
+export function skipUniversityOnboarding(token: string): Promise<User> {
+  return apiFetch<User>(
+    "/users/me/university/skip",
+    {
+      method: "POST",
+    },
+    token,
+  );
 }
 
 export function fetchRounds(token: string): Promise<Round[]> {

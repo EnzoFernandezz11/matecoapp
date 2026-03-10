@@ -11,9 +11,15 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     avatar_url: str
+    university_id: UUID | None = None
     university: str | None = None
     career: str | None = None
+    university_prompt_dismissed_at: datetime | None = None
     created_at: datetime
+
+
+class UpdateMyUniversityRequest(BaseModel):
+    university_id: UUID
 
 
 class GoogleAuthRequest(BaseModel):
