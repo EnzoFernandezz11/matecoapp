@@ -298,6 +298,38 @@ def get_round_detail(db: Session, round_id: UUID, user_id: UUID) -> RoundDetailR
     )
 
 
+def _recalculate_pending_turns(db: Session, round_id: UUID) -> None:
+    """Reassign future pending turns based on the current member list."""
+    today = datetime.now().date()
+
+    ordered_members = list(
+        db.scalars(
+            select(RoundMember)
+            .where(RoundMember.round_id == round_id)
+            .order_by(RoundMember.joined_at.asc())
+        ).all()
+    )
+    member_ids = [m.user_id for m in ordered_members]
+    if not member_ids:
+        return
+
+    pending_turns = list(
+        db.scalars(
+            select(Turn).where(
+                Turn.round_id == round_id,
+                Turn.turn_date >= today,
+                Turn.status == TurnStatus.pending,
+            )
+        ).all()
+    )
+
+    for turn in pending_turns:
+        new_user_id = get_member_by_turn_index(member_ids, turn.turn_index)
+        if turn.user_id != new_user_id:
+            turn.user_id = new_user_id
+    db.flush()
+
+
 def join_round(db: Session, round_id: UUID, user: User) -> Round:
     round_obj = get_round_or_404(db, round_id)
     if _ensure_member(db, round_id, user.id) is not None:
@@ -305,6 +337,9 @@ def join_round(db: Session, round_id: UUID, user: User) -> Round:
 
     membership = RoundMember(round_id=round_id, user_id=user.id)
     db.add(membership)
+    db.flush()
+
+    _recalculate_pending_turns(db, round_id)
     db.commit()
     return get_round_or_404(db, round_id)
 
@@ -343,22 +378,17 @@ def leave_round(db: Session, round_id: UUID, user: User) -> None:
         ).all()
     )
 
-    open_turns = list(
-        db.scalars(
-            select(Turn).where(
-                Turn.round_id == round_id,
-                Turn.status.in_([TurnStatus.pending, TurnStatus.reassigned]),
-                Turn.user_id == user.id,
-            )
-        ).all()
-    )
-
     if remaining_members:
-        for turn in open_turns:
-            next_member = remaining_members[turn.turn_index % len(remaining_members)]
-            turn.user_id = next_member.user_id
-            turn.status = TurnStatus.reassigned
+        _recalculate_pending_turns(db, round_id)
     else:
+        open_turns = list(
+            db.scalars(
+                select(Turn).where(
+                    Turn.round_id == round_id,
+                    Turn.status.in_([TurnStatus.pending, TurnStatus.reassigned]),
+                )
+            ).all()
+        )
         for turn in open_turns:
             db.delete(turn)
 
